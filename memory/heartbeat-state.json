@@ -1,5 +1,33 @@
 {
-  "lastCheck": "file-integrity",
-  "lastCheckAt": "2026-06-10T20:22:00Z",
-  "rotation": 4
+  "schema": 2,
+  "bootstrap_complete": true,
+  "heartbeats_disabled": false,
+  "rotation_index": 1,
+  "rotation_order": [
+    "auth_log",
+    "processes",
+    "network",
+    "file_integrity",
+    "package_state",
+    "resources"
+  ],
+  "cadence": {
+    "mode": "baseline",
+    "baseline_minutes": 90,
+    "escalated_minutes": 10,
+    "current_minutes": 90,
+    "escalated_beats_remaining": 0,
+    "quiet_hours": { "start": "23:00", "end": "07:00", "tz": "America/Los_Angeles" }
+  },
+  "last_alert_at": null,
+  "consecutive_clear": 0,
+  "lastChecks": {
+    "auth_log": "2026-06-11T02:02:00Z",
+    "processes": "2026-06-10T22:02:00Z",
+    "network": null,
+    "file_integrity": null,
+    "package_state": null,
+    "resources": null
+  },
+  "notes": "schema 2: per-check timestamps restored; adaptive cadence added (script-first, model-on-anomaly). See HEARTBEAT.md."
 }

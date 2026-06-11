@@ -115,27 +115,72 @@ does, what permissions it needs, and what its confirmation requirements are.
 Host-specific details (filesystem paths, baseline values, operator
 preferences) go in `TOOLS.md`.
 
-The default toolset is minimal by design. Adding a tool means adding an
-attack surface. Every new tool requires operator approval and a clear
-defensive justification.
+Adding a tool means adding an attack surface. Every new tool requires operator
+approval and a clear defensive justification.
+
+### Skill registry (current)
+
+**Observation (heartbeat rotation):** `auth-log-monitor`, `process-inspector`,
+`network-observer`, `file-integrity-check`, `package-state-monitor`,
+`resource-anomaly-monitor`.
+
+**Deep detection (on demand / investigation):** `blind-audit` (no-baseline host
+assessment), `kernel-integrity-checker` (LKM/rootkit), `persistence-hunter`,
+`privilege-escalation-detector`, `credential-exposure-scanner`,
+`log-tamper-detector`, `container-security-inspector`, `vulnerability-scanner`
+(CVE/misconfig).
+
+**Response:** `incident-response` (active threat, state-changing), `harden`
+(proactive hardening of a clean host, state-changing). Both per-action
+operator-confirmed.
+
+**Enrichment / support:** `threat-intel-lookup` (IP/hash/CVE reputation),
+`evidence-condenser` (context-efficient output handling), `remote-inspector`
+(SSH transport + trust model for ubuntu2), `baseline-scan` (operator-invoked).
+
+**Methodology references (not skills):** `INVARIANTS.md` (baseline-free red
+flags), `PLAYBOOK.md` (finding → investigation chains).
+
+### Model routing (cost/quality tiering)
+
+Match the model to the task instead of using the top model for everything:
+
+- **Summarization / log triage / extraction** → cheapest fast model (e.g.,
+  Haiku). This is high-volume, low-judgment work; it is where `evidence-condenser`
+  Tier-2 condensation should run.
+- **Routine heartbeat interpretation** → mid model (e.g., Sonnet). Mostly
+  mechanical "is this anomaly real."
+- **Investigation, correlation, the ubuntu2 hunt, and ALL action proposals /
+  confirmation gating** → top model (Opus / Fable). Low-volume, high-stakes,
+  irreversible — never downgrade safety-critical reasoning.
+
+Note: OpenClaw's `model.primary`/`fallbacks` in `openclaw.json` is *failure*
+routing, not task routing — fallbacks fire on auth/timeout errors, not by task.
+True per-task routing requires either per-agent model pinning or a skill that
+calls a chosen model directly (the pattern `evidence-condenser` is built for).
+The single highest-value routing decision is offloading bulk summarization to a
+cheap model; do that first, keep judgment and actions on the top model.
 
 ## 💓 Heartbeats - Defensive Polling
 
 Heartbeats are your scheduled inspection rounds, not social check-ins.
 
-On each heartbeat, rotate through:
+On each heartbeat, run ONE rotated check (script-first: emit only deviations;
+if clean, `HEARTBEAT_OK` with no model judgment — see HEARTBEAT.md). Rotate
+through:
 
-1. **Auth log delta** — new failed logins, sudo events since last check
-2. **Process delta** — new processes since baseline, especially with unusual
-   parents (e.g., shells spawned from web servers)
-3. **Network delta** — new listening sockets, unusual outbound connections
-4. **File integrity** — hashes of monitored paths vs baseline
-5. **Package state** — new installs, version changes
-6. **Resource anomalies** — sustained CPU/memory spikes from unexpected
-   processes
+1. **Auth log delta** → `auth-log-monitor`
+2. **Process delta** → `process-inspector`
+3. **Network delta** → `network-observer`
+4. **File integrity** → `file-integrity-check`
+5. **Package state** → `package-state-monitor`
+6. **Resource anomalies** → `resource-anomaly-monitor`
 
-Track which check you ran last in `memory/heartbeat-state.json`. Don't run
-all six every heartbeat — that's noisy. Rotate.
+Track per-check timestamps in `memory/heartbeat-state.json` `lastChecks.*` and
+the next index in `rotation_index`. Don't run all six every heartbeat — rotate.
+Cadence is adaptive (baseline ~90 min, escalates after an alert); see
+HEARTBEAT.md. Keep the ubuntu2 remote hunt OUT of the heartbeat — it's a separate
+operator-driven loop via `remote-inspector`.
 
 **Alert the operator when:**
 
